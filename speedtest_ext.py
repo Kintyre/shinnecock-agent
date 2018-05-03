@@ -8,7 +8,7 @@ from subprocess import Popen, PIPE, list2cmdline
 import ifcfg
 import speedtest
 
-JSON_FORMAT_VER = "0.2.1"
+JSON_FORMAT_VER = "0.2.2"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -67,16 +67,16 @@ get_macosx_network_hw = cli_parser(
 get_macosx_airport = cli_parser(
     cmd=["/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport", "-I"],
     regexes=[
-        r"SSID: (?P<SSID>\S+)",
-        r"BSSID: (?P<BSSID>\S+)",
-        r"MCS: (?P<MCS>\d+)",
-        r"agrCtlRSSI: (?P<agr_ctl_rssi>-?\d+)",
-        r"agrExtRSSI: (?P<agr_ext_rssi>-?\d+)",
-        r"agrCtlNoise: (?P<agr_ctl_noise>-?\d+)",
-        r"agrExtNoise: (?P<agr_ext_noise>-?\d+)",
-        r"lastTxRate: (?P<last_tx_rate>\d+)",
-        r"chanel: (?P<chanel>\d+)",
-        r"maxRate: (?P<max_rate>\d+)",
+        r"\bSSID: (?P<SSID>\S+)",
+        r"\bBSSID: (?P<BSSID>\S+)",
+        r"\bMCS: (?P<MCS>\d+)",
+        r"\bagrCtlRSSI: (?P<agr_ctl_rssi>-?\d+)",
+        r"\bagrExtRSSI: (?P<agr_ext_rssi>-?\d+)",
+        r"\bagrCtlNoise: (?P<agr_ctl_noise>-?\d+)",
+        r"\bagrExtNoise: (?P<agr_ext_noise>-?\d+)",
+        r"\blastTxRate: (?P<last_tx_rate>\d+)",
+        r"\bchanel: (?P<chanel>\d+)",
+        r"\bmaxRate: (?P<max_rate>\d+)",
     ], breaker=None,  group_by=None)   
 
 
