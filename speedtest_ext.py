@@ -68,7 +68,7 @@ get_macosx_airport = cli_parser(
     cmd=["/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport", "-I"],
     regexes=[
         r"SSID: (?P<SSID>\S+)",
-        r"BSSID: (?P<BSSID>\d+)",
+        r"BSSID: (?P<BSSID>\S+)",
         r"MCS: (?P<MCS>\d+)",
         r"agrCtlRSSI: (?P<agr_ctl_rssi>-?\d+)",
         r"agrExtRSSI: (?P<agr_ext_rssi>-?\d+)",
