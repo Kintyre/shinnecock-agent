@@ -3,12 +3,13 @@
 import re
 import sys
 import json
+import platform
 from subprocess import Popen, PIPE, list2cmdline
 
 import ifcfg
 import speedtest
 
-JSON_FORMAT_VER = "0.2.2"
+JSON_FORMAT_VER = "0.2.3"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -95,6 +96,22 @@ get_linux_iwconfig = cli_parser(
     group_by="device")
 
 
+get_windows_netsh = cli_parser(
+    ["netsh", "WLAN", "show", "interfaces"],
+    breaker="\n\n",       # Unsure.  Need to find with 2 WLAN cards
+    regexes=[
+        r"\s+Name\s+: (?P<Name>[^\r\n]+)",
+        r"\s+Description\s+: (?P<Description>[^\r\n]+)",
+        r"\s+Physical address\s+: (?P<mac>[0-9a-fA-F:]+)",
+        r"\s+SSID\s+: (?P<SSID>[^ ]+)",
+        r"\s+BSSID\s+: (?P<BSSID>[^ ]+)",
+        r"\s+Channel\s+: (?P<Channel>\d+)",
+        r"\s+Receive rate \(Mbps\)\s*: (?P<receive_rate_mbps>\d+)",
+        r"\s+Transmit rate \(Mbps\)\s*: (?P<transmit_rate_mbps>\d+)",
+        r"\s+Signal\s+: (?P<signal_percent>\d+)%",
+    ],
+    group_by="mac")
+
 
 def run_speedtest(ip=None):
     try:
@@ -131,6 +148,26 @@ def output_to_hec(event):
         sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
 
 
+def add_plaform_info(d):
+    def tuple_non_empty(t):
+        for i in t:
+            if i:
+                return True
+        return False
+    p = {}
+    p["system"] = platform.system()
+    p["linux_distribution"] = platform.linux_distribution()
+    p["mac_ver"] = platform.mac_ver()
+    p["win_ver"] = platform.win32_ver()
+    p["java_ver"] = platform.java_ver()
+    p["processor"] = platform.processor()
+    p["uname"] = platform.uname()
+    plat = d["platform"] = {}
+    for (k,v) in p.items():
+        if (isinstance(v, (tuple,list)) and tuple_non_empty(v)) or v:
+            plat[k] = v
+
+
 def main(output=output_to_hec):
     if_for_testing = {}
     try:
@@ -164,18 +201,21 @@ def main(output=output_to_hec):
     net_info = get_macosx_network_hw()
     sys.stderr.write("DEBUG:  get_macosx_hardware() returns: {!r}\n".format(net_info))
 
+    win_info = get_windows_netsh()
+    sys.stderr.write("DEBUG:  get_windows_netsh() returns: {!r}\n".format(win_info))
 
     iwconfig_info = get_linux_iwconfig()
     sys.stderr.write("DEBUG:  get_linux_iwconfig() returns: {!r}\n".format(iwconfig_info))
 
     for ((ip,dev), info) in if_for_testing.items():
         try:
+            mac = None
             sys.stderr.write("Speed testing on interface {} (ip={})\n".format(dev, ip))
             results = run_speedtest(ip)
             if "device" in info:
                 results["dev"] = info.pop("device")
             if "ether" in info:
-                results["address"] = info.pop("ether")
+                mac = results["address"] = info.pop("ether")
             if info:
                 results["meta"] = info
 
@@ -187,9 +227,18 @@ def main(output=output_to_hec):
                     if hw_port.lower() == "wi-fi":
                         results["wlan"] = get_macosx_airport()["default"]
 
+            if win_info and mac and mac in win_info:
+                results["wlan"] = win_info[mac]
+
             # Add wireless info for Linux systems
             if iwconfig_info and dev in iwconfig_info:
                 results["wlan"] = iwconfig_info[dev]
+
+            try:
+                add_plaform_info(results)
+            except Exception, e:
+                sys.stder.write("Failed to get platform info: {} \n".format(e))
+
             # Add other Linux info for
             results["v"] = JSON_FORMAT_VER
             output(json.dumps(results))
