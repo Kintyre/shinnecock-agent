@@ -77,7 +77,7 @@ get_macosx_airport = cli_parser(
         r"\blastTxRate: (?P<last_tx_rate>\d+)",
         r"\bchanel: (?P<chanel>\d+)",
         r"\bmaxRate: (?P<max_rate>\d+)",
-    ], breaker=None,  group_by=None)   
+    ], breaker=None,  group_by=None)
 
 
 get_linux_iwconfig = cli_parser(
@@ -104,6 +104,7 @@ def run_speedtest(ip=None):
             sys.stderr.write("Unable to run speedtest for {} because {}\n".format(ip, e))
         else:
             sys.stderr.write("Unable to run speedtest because {}\n".format(e))
+        return None
     st.get_best_server()
     st.download()
     st.upload()
@@ -125,7 +126,7 @@ def output_to_hec(event):
         "host" : socket.gethostname(),
         "event" : event,
     }
-    r = requests.post(url, headers=headers, data=json.dumps(payload)) 
+    r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
 
@@ -159,7 +160,7 @@ def main(output=output_to_hec):
         if_for_testing[(interface['inet'], interface['device'])] = d
 
     sys.stderr.write("DEBUG:  iterfaces for testing: {!r}\n".format(if_for_testing))
-    
+
     net_info = get_macosx_network_hw()
     sys.stderr.write("DEBUG:  get_macosx_hardware() returns: {!r}\n".format(net_info))
 
@@ -168,29 +169,32 @@ def main(output=output_to_hec):
     sys.stderr.write("DEBUG:  get_linux_iwconfig() returns: {!r}\n".format(iwconfig_info))
 
     for ((ip,dev), info) in if_for_testing.items():
-        sys.stderr.write("Speed testing on interface {} (ip={})\n".format(dev, ip))
-        results = run_speedtest(ip)
-        if "device" in info:
-            results["dev"] = info.pop("device")
-        if "ether" in info:
-            results["address"] = info.pop("ether")
-        if info:
-            results["meta"] = info
+        try:
+            sys.stderr.write("Speed testing on interface {} (ip={})\n".format(dev, ip))
+            results = run_speedtest(ip)
+            if "device" in info:
+                results["dev"] = info.pop("device")
+            if "ether" in info:
+                results["address"] = info.pop("ether")
+            if info:
+                results["meta"] = info
 
-        # Add MacOSX hardware info, if available.  (Indicate LAN vs Wireless)
-        if net_info and dev in net_info:
-            hw_port = net_info[dev].get("hardware_port") 
-            if hw_port:
-                results["osx_hw_port"] = hw_port
-                if hw_port.lower() == "wi-fi":
-                    results["wlan"] = get_macosx_airport()["default"]
+            # Add MacOSX hardware info, if available.  (Indicate LAN vs Wireless)
+            if net_info and dev in net_info:
+                hw_port = net_info[dev].get("hardware_port")
+                if hw_port:
+                    results["osx_hw_port"] = hw_port
+                    if hw_port.lower() == "wi-fi":
+                        results["wlan"] = get_macosx_airport()["default"]
 
-        # Add wireless info for Linux systems
-        if iwconfig_info and dev in iwconfig_info:
-            results["wlan"] = iwconfig_info[dev]
-        # Add other Linux info for
-        results["v"] = JSON_FORMAT_VER
-        output(json.dumps(results))
+            # Add wireless info for Linux systems
+            if iwconfig_info and dev in iwconfig_info:
+                results["wlan"] = iwconfig_info[dev]
+            # Add other Linux info for
+            results["v"] = JSON_FORMAT_VER
+            output(json.dumps(results))
+        except Exception, e:
+            sys.stderr.write("Failure for ip {}: {}\n".format(ip, e))
 
 if __name__ == '__main__':
     #main(output_to_scriptedinput)
