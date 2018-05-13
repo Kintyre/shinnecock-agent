@@ -192,7 +192,7 @@ def main(output=output_to_hec):
         # Todo:  See if there are any other interesting goodies provided by Windows
         # Todo:  Capture the "Description" field from ipconfig; extend Windows class in ifcfg
         for k in ("device", "ether", "status", "mtu", "txbytes", "rxbytes"):
-            if k in d:
+            if k in interface:
                 d[k] = interface[k]
         if_for_testing[(interface['inet'], interface['device'])] = d
 
