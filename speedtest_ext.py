@@ -9,7 +9,7 @@ from subprocess import Popen, PIPE, list2cmdline
 import ifcfg
 import speedtest
 
-JSON_FORMAT_VER = "0.2.3"
+JSON_FORMAT_VER = "0.2.4"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
