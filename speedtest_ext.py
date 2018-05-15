@@ -9,7 +9,7 @@ from subprocess import Popen, PIPE, list2cmdline
 import ifcfg
 import speedtest
 
-JSON_FORMAT_VER = "0.2.4"
+JSON_FORMAT_VER = "0.2.5"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -68,7 +68,7 @@ get_macosx_network_hw = cli_parser(
 get_macosx_airport = cli_parser(
     cmd=["/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport", "-I"],
     regexes=[
-        r"\bSSID: (?P<SSID>\S+)",
+        r"\bSSID: (?P<SSID>[^\r\n]+)",
         r"\bBSSID: (?P<BSSID>\S+)",
         r"\bMCS: (?P<MCS>\d+)",
         r"\bagrCtlRSSI: (?P<agr_ctl_rssi>-?\d+)",
@@ -103,9 +103,10 @@ get_windows_netsh = cli_parser(
         r"\s+Name\s+: (?P<Name>[^\r\n]+)",
         r"\s+Description\s+: (?P<Description>[^\r\n]+)",
         r"\s+Physical address\s+: (?P<mac>[0-9a-fA-F:]+)",
-        r"\s+SSID\s+: (?P<SSID>[^ ]+)",
+        r"\s+SSID\s+: (?P<SSID>[^\r\n]+)",
         r"\s+BSSID\s+: (?P<BSSID>[^ ]+)",
         r"\s+Channel\s+: (?P<Channel>\d+)",
+        r"\s+Radio Type\s+: (?P<radio_type>\S+)",
         r"\s+Receive rate \(Mbps\)\s*: (?P<receive_rate_mbps>\d+)",
         r"\s+Transmit rate \(Mbps\)\s*: (?P<transmit_rate_mbps>\d+)",
         r"\s+Signal\s+: (?P<signal_percent>\d+)%",
@@ -147,13 +148,17 @@ def output_to_hec(event):
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
 
-
-def add_plaform_info(d):
-    def tuple_non_empty(t):
-        for i in t:
-            if i:
-                return True
-        return False
+def add_platform_info(d):
+    def non_empty(x):
+        if isinstance(x, (list, tuple)):
+            for i in x:
+                if non_empty(i):
+                    return True
+            return False
+        elif x:
+            return True
+        else:
+            return False
     p = {}
     p["system"] = platform.system()
     p["linux_distribution"] = platform.linux_distribution()
@@ -164,7 +169,7 @@ def add_plaform_info(d):
     p["uname"] = platform.uname()
     plat = d["platform"] = {}
     for (k,v) in p.items():
-        if (isinstance(v, (tuple,list)) and tuple_non_empty(v)) or v:
+        if non_empty(v):
             plat[k] = v
 
 
@@ -235,13 +240,15 @@ def main(output=output_to_hec):
                 results["wlan"] = iwconfig_info[dev]
 
             try:
-                add_plaform_info(results)
+                add_platform_info(results)
             except Exception, e:
-                sys.stder.write("Failed to get platform info: {} \n".format(e))
+                sys.stderr.write("Failed to get platform info: {} \n".format(e))
 
             # Add other Linux info for
             results["v"] = JSON_FORMAT_VER
-            output(json.dumps(results))
+            o = json.dumps(results)
+            sys.stderr.write("DEBUG:   Payload:  {}\n".format(o))
+            output(o)
         except Exception, e:
             sys.stderr.write("Failure for ip {}: {}\n".format(ip, e))
 
