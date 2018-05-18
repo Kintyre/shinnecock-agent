@@ -13,7 +13,7 @@ import speedtest
 # To enable loads of noise!
 # speedtest.DEBUG = True
 
-JSON_FORMAT_VER = "0.2.7"
+JSON_FORMAT_VER = "0.2.8"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -99,6 +99,19 @@ get_linux_iwconfig = cli_parser(
     ],
     group_by="device")
 
+get_linux_lshw = cli_parser(
+    cmd=["lshw", "-class", "network"],
+    breaker="[\r\n]+\s+\*-network",
+    regexes=[
+        r"\blogical name: (?P<device>\S+)",
+        r"\s+description: (?P<description>[^\r\n]+)",
+        r"\s+capabilities: (?P<capabilities>[^\r\n]+)",
+        r"\s+configuration: (?P<configuration>[^\r\n]+)",
+        r"\bdriver=(?P<driver>\S+)",
+        r"\bdriverversion=(?P<driver_version>\S+)",
+    ],
+    group_by="device")
+
 
 get_windows_netsh = cli_parser(
     ["netsh", "WLAN", "show", "interfaces"],
@@ -161,6 +174,7 @@ def output_to_hec(event):
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
 
+
 def add_platform_info(d):
     def non_empty(x):
         if isinstance(x, (list, tuple)):
@@ -173,13 +187,38 @@ def add_platform_info(d):
         else:
             return False
     p = {}
-    p["system"] = platform.system()
-    p["linux_distribution"] = platform.linux_distribution()
-    p["mac_ver"] = platform.mac_ver()
-    p["win_ver"] = platform.win32_ver()
-    p["java_ver"] = platform.java_ver()
+    p["platform"] = platform.platform()
     p["processor"] = platform.processor()
-    p["uname"] = platform.uname()
+    system = p["system"] = platform.system()
+    if system == "Linux":
+        (dist, version, linux_id) = platform.linux_distribution()
+        p["linux"] = {
+            "dist": dist,
+            "version": version,
+            "id": linux_id}
+    elif system == "Darwin":
+        (release, versioninfo, machine) = platform.mac_ver()
+        p["mac"] = {"release": release,
+                    "machine": machine}
+    elif system == "Windows":
+        (release, version, csd, ptype) = platform.win32_ver()
+        p["win"] = {
+            "release": release,
+            "version": version,
+            "csd": csd}
+    elif system == "Java":
+        # Just dump it... very unlikely
+        p["java"] = platform.java_ver()
+    # Everybody has a uname!
+    (system, node, release, version, machine, processor) = platform.uname()
+    p["uname"] = dict(
+        system=system,
+        node=node,
+        release=release,
+        version=version,
+        machine=machine,
+        processor=processor
+    )
     plat = d["platform"] = {}
     for (k,v) in p.items():
         if non_empty(v):
@@ -226,6 +265,9 @@ def main(output=output_to_hec):
     iwconfig_info = get_linux_iwconfig()
     sys.stderr.write("DEBUG:  get_linux_iwconfig() returns: {0!r}\n".format(iwconfig_info))
 
+    lshw_info = get_linux_lshw()
+    sys.stderr.write("DEBUG:  get_linux_lshw() returns: {0!r}\n".format(lshw_info))
+
     for ((ip,dev), info) in if_for_testing.items():
         try:
             mac = None
@@ -252,6 +294,9 @@ def main(output=output_to_hec):
             # Add wireless info for Linux systems
             if iwconfig_info and dev in iwconfig_info:
                 results["wlan"] = iwconfig_info[dev]
+
+            if lshw_info and dev in lshw_info:
+                results["hardware"] = lshw_info[dev]
 
             try:
                 add_platform_info(results)
