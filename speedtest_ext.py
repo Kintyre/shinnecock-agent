@@ -4,12 +4,13 @@ import re
 import sys
 import json
 import platform
+import time
 from subprocess import Popen, PIPE, list2cmdline
 
 import ifcfg
 import speedtest
 
-JSON_FORMAT_VER = "0.2.5"
+JSON_FORMAT_VER = "0.2.7"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -123,10 +124,19 @@ def run_speedtest(ip=None):
         else:
             sys.stderr.write("Unable to run speedtest because {}\n".format(e))
         return None
+    d = {}
     st.get_best_server()
+    start = time.time()
     st.download()
+    end = time.time()
+    d["download_duration"] = "{0:01.3f}".format(end - start)
+    start = end
     st.upload()
-    return st.results.dict()
+    end = time.time()
+    d["upload_duration"] = "{0:01.3f}".format(end - start)
+    data = st.results.dict()
+    data.update(d)
+    return data
 
 def output_to_scriptedinput(event):
     json.dump(sys.stdout, event)
