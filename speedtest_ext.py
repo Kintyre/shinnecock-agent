@@ -10,6 +10,9 @@ from subprocess import Popen, PIPE, list2cmdline
 import ifcfg
 import speedtest
 
+# To enable loads of noise!
+# speedtest.DEBUG = True
+
 JSON_FORMAT_VER = "0.2.7"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
@@ -19,7 +22,7 @@ def cli_parser(cmd, breaker, regexes, group_by="id"):
             cre = re.compile(regex)
             cregexes.append(cre)
         except:
-            sys.stderr.write("Failed to compile regex: {}\n".format(regex))
+            sys.stderr.write("Failed to compile regex: {0}\n".format(regex))
             raise
     def f():
         try:
@@ -27,7 +30,7 @@ def cli_parser(cmd, breaker, regexes, group_by="id"):
         except OSError, e:
             # No such file or directory.  Utility not installed, moving on.
             if e.errno == 2:
-                sys.stderr.write("Missing {}\n".format(cmd[0]))
+                sys.stderr.write("Missing {0}\n".format(cmd[0]))
             else:
                 raise
             return
@@ -148,7 +151,7 @@ def output_to_hec(event):
     endpoint = "http://splunkspeedtest.dev.kintyre.net:8088"
     token = "dbbcd446-f5e7-412b-a971-dae59167a72f"
     #
-    url =  "{}/services/collector/event".format(endpoint)
+    url =  "{0}/services/collector/event".format(endpoint)
     headers = { "Authorization" : "Splunk " + token }
     payload = {
         "host" : socket.gethostname(),
@@ -156,7 +159,7 @@ def output_to_hec(event):
     }
     r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
-        sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
+        sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
 
 def add_platform_info(d):
     def non_empty(x):
@@ -189,11 +192,12 @@ def main(output=output_to_hec):
         interfaces = ifcfg.interfaces()
     except Exception, e:
         sys.stderr.write("Unable to get interface info.  Falling back to simple output. "
-                         "Error: {}\n".format(e))
+                         "Error: {0}\n".format(e))
         results = run_speedtest(None)
         results["v"] = JSON_FORMAT_VER
         results["_error"] = "ifcfg failed"
         output(json.dumps(results))
+        return
 
     for name, interface in interfaces.items():
         # Skip loopback adapter
@@ -211,21 +215,21 @@ def main(output=output_to_hec):
                 d[k] = interface[k]
         if_for_testing[(interface['inet'], interface['device'])] = d
 
-    sys.stderr.write("DEBUG:  iterfaces for testing: {!r}\n".format(if_for_testing))
+    sys.stderr.write("DEBUG:  iterfaces for testing: {0!r}\n".format(if_for_testing))
 
     net_info = get_macosx_network_hw()
-    sys.stderr.write("DEBUG:  get_macosx_hardware() returns: {!r}\n".format(net_info))
+    sys.stderr.write("DEBUG:  get_macosx_hardware() returns: {0!r}\n".format(net_info))
 
     win_info = get_windows_netsh()
-    sys.stderr.write("DEBUG:  get_windows_netsh() returns: {!r}\n".format(win_info))
+    sys.stderr.write("DEBUG:  get_windows_netsh() returns: {0!r}\n".format(win_info))
 
     iwconfig_info = get_linux_iwconfig()
-    sys.stderr.write("DEBUG:  get_linux_iwconfig() returns: {!r}\n".format(iwconfig_info))
+    sys.stderr.write("DEBUG:  get_linux_iwconfig() returns: {0!r}\n".format(iwconfig_info))
 
     for ((ip,dev), info) in if_for_testing.items():
         try:
             mac = None
-            sys.stderr.write("Speed testing on interface {} (ip={})\n".format(dev, ip))
+            sys.stderr.write("Speed testing on interface {0} (ip={1})\n".format(dev, ip))
             results = run_speedtest(ip)
             if "device" in info:
                 results["dev"] = info.pop("device")
@@ -252,15 +256,15 @@ def main(output=output_to_hec):
             try:
                 add_platform_info(results)
             except Exception, e:
-                sys.stderr.write("Failed to get platform info: {} \n".format(e))
+                sys.stderr.write("Failed to get platform info: {0} \n".format(e))
 
             # Add other Linux info for
             results["v"] = JSON_FORMAT_VER
             o = json.dumps(results)
-            sys.stderr.write("DEBUG:   Payload:  {}\n".format(o))
+            sys.stderr.write("DEBUG:   Payload:  {0}\n".format(o))
             output(o)
         except Exception, e:
-            sys.stderr.write("Failure for ip {}: {}\n".format(ip, e))
+            sys.stderr.write("Failure for ip {0}: {1}\n".format(ip, e))
 
 if __name__ == '__main__':
     #main(output_to_scriptedinput)
