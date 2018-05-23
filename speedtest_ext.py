@@ -155,7 +155,7 @@ def run_speedtest(ip=None):
     return data
 
 def output_to_scriptedinput(event):
-    json.dump(sys.stdout, event)
+    json.dump(event, sys.stdout)
     sys.stdout.write("\n")
 
 def output_to_hec(event):
