@@ -13,7 +13,7 @@ import speedtest
 # To enable loads of noise!
 # speedtest.DEBUG = True
 
-JSON_FORMAT_VER = "0.2.8"
+JSON_FORMAT_VER = "0.3.0"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -314,5 +314,3 @@ def main(output=output_to_hec):
 if __name__ == '__main__':
     #main(output_to_scriptedinput)
     main(output_to_hec)
-
-

@@ -1,24 +1,23 @@
 #!/usr/bin/env python
 from setuptools import setup
 
-setup(name="KintyreSpeedTestStandalone",
-      version="0.0.1",
-      description="Kintyre Shinnecock standalone speedtest client",
+setup(name="kintyre-speedtest-agent",
+      version="0.3.0",
+      description="Kintyre Shinnecock speedtest agent",
       author="Lowell Alleman",
       author_email="lowell@kintyre.co",
-      url="https://github.com/Kintyre/shinnecock-standalone-client",
+      url="https://github.com/Kintyre/shinnecock-agent",
       py_modules=[
-        "speedtest_ext",
+        "kintyre_speedtest",
       ],
-      install_requires=[ 
+      install_requires=[
         "speedtest-cli",
         "ifcfg",
-        "requests", 
+        "requests",
       ],
       entry_points={
         "console_scripts" : [
-            "kinytre_speedtest = speedtest_ext:main",
+            "kinytre-speedtest = kintyre_speedtest:main",
         ]
       },
     )
-
