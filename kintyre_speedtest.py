@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import, unicode_literals
 import re
 import sys
 import json
 import platform
 import time
+import locale
 from subprocess import Popen, PIPE, list2cmdline
 
 import ifcfg
 import speedtest
 
+default_encoding = locale.getpreferredencoding()
+
 # To enable loads of noise!
 # speedtest.DEBUG = True
 
-JSON_FORMAT_VER = "0.3.0"
+JSON_FORMAT_VER = "0.3.1"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -26,8 +30,9 @@ def cli_parser(cmd, breaker, regexes, group_by="id"):
             raise
     def f():
         try:
+            # In Python 3.6 and later, we can set encoding via Popen
             proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        except OSError, e:
+        except OSError as e:
             # No such file or directory.  Utility not installed, moving on.
             if e.errno == 2:
                 sys.stderr.write("Missing {0}\n".format(cmd[0]))
@@ -35,6 +40,7 @@ def cli_parser(cmd, breaker, regexes, group_by="id"):
                 raise
             return
         (stdout, stderr) = proc.communicate()
+        stdout = stdout.decode(encoding=default_encoding, errors="replace")
         if proc.returncode != 0:
             sys.stderr.write("FAILED: rc={1}  {0}\n".format(list2cmdline(cmd), proc.returncode))
             return
@@ -101,7 +107,7 @@ get_linux_iwconfig = cli_parser(
 
 get_linux_lshw = cli_parser(
     cmd=["lshw", "-class", "network"],
-    breaker="[\r\n]+\s+\*-network",
+    breaker=r"[\r\n]+\s+\*-network",
     regexes=[
         r"\blogical name: (?P<device>\S+)",
         r"\s+description: (?P<description>[^\r\n]+)",
@@ -115,7 +121,7 @@ get_linux_lshw = cli_parser(
 
 get_windows_netsh = cli_parser(
     ["netsh", "WLAN", "show", "interfaces"],
-    breaker="\n\n",       # Unsure.  Need to find with 2 WLAN cards
+    breaker=r"\n\n",       # Unsure.  Need to find with 2 WLAN cards
     regexes=[
         r"\s+Name\s+: (?P<Name>[^\r\n]+)",
         r"\s+Description\s+: (?P<Description>[^\r\n]+)",
@@ -134,7 +140,7 @@ get_windows_netsh = cli_parser(
 def run_speedtest(ip=None):
     try:
         st = speedtest.Speedtest(source_address=ip)
-    except speedtest.ConfigRetrievalError, e:
+    except speedtest.ConfigRetrievalError as e:
         if ip:
             sys.stderr.write("Unable to run speedtest for {} because {}\n".format(ip, e))
         else:
@@ -220,7 +226,7 @@ def add_platform_info(d):
         processor=processor
     )
     plat = d["platform"] = {}
-    for (k,v) in p.items():
+    for (k,v) in list(p.items()):
         if non_empty(v):
             plat[k] = v
 
@@ -229,7 +235,7 @@ def main(output=output_to_hec):
     if_for_testing = {}
     try:
         interfaces = ifcfg.interfaces()
-    except Exception, e:
+    except Exception as e:
         sys.stderr.write("Unable to get interface info.  Falling back to simple output. "
                          "Error: {0}\n".format(e))
         results = run_speedtest(None)
@@ -238,7 +244,7 @@ def main(output=output_to_hec):
         output(json.dumps(results))
         return
 
-    for name, interface in interfaces.items():
+    for name, interface in list(interfaces.items()):
         # Skip loopback adapter
         if name.startswith("lo"):
             continue
@@ -268,7 +274,7 @@ def main(output=output_to_hec):
     lshw_info = get_linux_lshw()
     sys.stderr.write("DEBUG:  get_linux_lshw() returns: {0!r}\n".format(lshw_info))
 
-    for ((ip,dev), info) in if_for_testing.items():
+    for ((ip,dev), info) in list(if_for_testing.items()):
         try:
             mac = None
             sys.stderr.write("Speed testing on interface {0} (ip={1})\n".format(dev, ip))
@@ -300,15 +306,19 @@ def main(output=output_to_hec):
 
             try:
                 add_platform_info(results)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Failed to get platform info: {0} \n".format(e))
+
+            # Add python version info
+            # Todo: Figure out what bits we really want to capture.
+            results["py"] = sys.version
 
             # Add other Linux info for
             results["v"] = JSON_FORMAT_VER
             o = json.dumps(results)
             sys.stderr.write("DEBUG:   Payload:  {0}\n".format(o))
             output(o)
-        except Exception, e:
+        except Exception as e:
             sys.stderr.write("Failure for ip {0}: {1}\n".format(ip, e))
 
 if __name__ == '__main__':
