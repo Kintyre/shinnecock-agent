@@ -27,6 +27,7 @@ matrix:
 
 
 install:
+  - echo "Build $TRAVIS_BUILD_NUMBER BRANCH=$TRAVIS_BRANCH TAG=$TRAVIS_TAG"
   - |
     # Install
     if [[ $TRAVIS_OS_NAME == "osx" ]]; then
@@ -51,7 +52,6 @@ install:
   - pip install coverage
   - pip install codecov
   - pip install .
-  #- echo "Build $TRAVIS_BUILD_NUMBER BRANCH=$TRAVIS_BRANCH TAG=$TRAVIS_TAG"
 
 script:
   - coverage run kintyre_speedtest.py
@@ -66,6 +66,8 @@ after_success:
         pip install pyinstaller
         pyinstaller kintyre_speedtest.py
         (cd dist; zip kintyre_speedtest-macosx-${TRAVIS_BRANCH}.zip -r kintyre_speedtest; )
+    else
+        echo "another time, perhaps?"
     fi
 
 deploy:
