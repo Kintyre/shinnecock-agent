@@ -11,10 +11,6 @@ matrix:
   - os: linux
     python: '2.7'
   - os: linux
-    python: '3.4'
-  - os: linux
-    python: '3.5'
-  - os: linux
     python: '3.6'
     env: BUILD_SDIST=true
   - os: osx
@@ -58,14 +54,15 @@ install:
   #- echo "Build $TRAVIS_BUILD_NUMBER BRANCH=$TRAVIS_BRANCH TAG=$TRAVIS_TAG"
 
 script:
-  - if [[ $BUILD_SDIST == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then export DO_RELEASE=True; echo 'Can we build it, yes we can!';  fi
   - coverage run kintyre_speedtest.py
 
 after_success:
-  - coveralls
   - codecov
+  - if [[ $BUILD_SDIST == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then export DO_RELEASE=true; echo "Can we build it?  Yes we can!"; else echo "nah"; fi
   - |
-    if [[ $BUILD_SDIST == "True" ]]; then
+    if [[ BUILD_OSX_APP == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then
+        export BUILD_OSX_APP=now
+        echo "Launching pyinstaller...."
         pip install pyinstaller
         pyinstaller kintyre_speedtest.py
         (cd dist; zip kintyre_speedtest-macosx-${TRAVIS_BRANCH}.zip -r kintyre_speedtest; )
@@ -81,7 +78,7 @@ deploy:
     skip_cleanup: true
     on:
       all_branches: true
-      condition: $DO_RELEASE = "True"
+      condition: $DO_RELEASE = "true"
   - provider: pypi
     user: lowellalleman
     password:
@@ -90,7 +87,7 @@ deploy:
     skip_cleanup: true
     on:
       all_branches: true
-      condition: $DO_RELEASE = True
+      condition: $BUILD_OSX_APP = "now"
 
 notifications:
   email:
