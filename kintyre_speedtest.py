@@ -17,7 +17,7 @@ default_encoding = locale.getpreferredencoding()
 # To enable loads of noise!
 # speedtest.DEBUG = True
 
-JSON_FORMAT_VER = "0.3.2rc"
+JSON_FORMAT_VER = "0.3.2"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
