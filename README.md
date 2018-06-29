@@ -1,6 +1,12 @@
 Kintyre Speedtest Agent
 -----------------------
 
+[![Build Status](https://travis-ci.org/Kintyre/shinnecock-agent.svg?branch=master)](https://travis-ci.org/Kintyre/shinnecock-agent)
+[![codecov](https://codecov.io/gh/Kintyre/shinnecock-agent/branch/master/graph/badge.svg)](https://codecov.io/gh/Kintyre/ksconf)
+[![PyPI](https://img.shields.io/pypi/v/kintyre-speedtest-agent.svg)](https://pypi.org/project/kintyre-speedtest-agent/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/kintyre-speedtest-agent.svg)](https://pypi.org/project/kintyre-speedtest-agent/)
+
+
 An Internet speedtest monitoring utility for Splunk HEC.  Speedtest and other networking information
 is captured and sent to a central Splunk instance via the Http Event Collector.  Scheduled
 monitoring is handled by the OS scheduler of your choice (often cron or the Windows Scheduler).
