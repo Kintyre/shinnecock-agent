@@ -60,7 +60,7 @@ after_success:
   - codecov
   - if [[ $BUILD_SDIST == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then export DO_RELEASE=true; echo "Can we build it?  Yes we can!"; else echo "nah"; fi
   - |
-    if [[ BUILD_OSX_APP == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then
+    if [[ $BUILD_OSX_APP == "true" && $TRAVIS_BRANCH =~ ^v.* ]]; then
         export BUILD_OSX_APP=now
         echo "Launching pyinstaller...."
         pip install pyinstaller
