@@ -80,7 +80,8 @@ deploy:
     skip_cleanup: true
     on:
       all_branches: true
-      condition: $DO_RELEASE = "true"
+      condition: $BUILD_OSX_APP = "now"
+
   - provider: pypi
     user: lowellalleman
     password:
@@ -89,7 +90,7 @@ deploy:
     skip_cleanup: true
     on:
       all_branches: true
-      condition: $BUILD_OSX_APP = "now"
+      condition: $DO_RELEASE = "true"
 
 notifications:
   email:
