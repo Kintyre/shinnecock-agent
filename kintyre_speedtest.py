@@ -244,6 +244,25 @@ def main(output=output_to_hec):
         output(json.dumps(results))
         return
 
+    if interface is None:
+        # If ifcfg.default_interface() is broken (as it is for MacOS),
+        # fall back to using all interfaces reported by ifcfg.interfaces()
+        # with some obvious exclusions
+        interfaces = ifcfg.interfaces()
+        for name, interface in list(interfaces.items()):
+            # Skip loopback adapter
+            if name.startswith("lo"):
+                continue
+            if interface.get("status", None) == "inactive":
+                continue
+            if interface["inet"] is None:
+                continue
+            d = {}
+            for k in ("device", "ether", "status", "mtu", "txbytes", "rxbytes"):
+                if k in interface:
+                    d[k] = interface[k]
+            if_for_testing[(interface['inet'], interface['device'])] = d
+
     d = {}
     # Todo:  See if there are any other interesting goodies provided by Windows
     # Todo:  Capture the "Description" field from ipconfig; extend Windows class in ifcfg
