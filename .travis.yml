@@ -55,6 +55,7 @@ install:
 
 script:
   - coverage run kintyre_speedtest.py
+  - which kintyre-speedtest
 
 after_success:
   - codecov

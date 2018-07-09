@@ -53,7 +53,7 @@ setup(name="kintyre-speedtest-agent",
       ],
       entry_points={
         "console_scripts" : [
-            "kinytre-speedtest = kintyre_speedtest:main",
+            "kintyre-speedtest = kintyre_speedtest:cli",
         ]
       },
     )

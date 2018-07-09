@@ -28,7 +28,7 @@ default_encoding = locale.getpreferredencoding()
 # To enable loads of noise!
 # speedtest.DEBUG = True
 
-JSON_FORMAT_VER = "0.3.3"
+JSON_FORMAT_VER = "0.3.4"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
@@ -396,7 +396,8 @@ def load_config(path):
 '''
 
 
-if __name__ == '__main__':
+
+def cli():
     from argparse import ArgumentParser
 
     parser = ArgumentParser(description="Kintyre speedtest agent")
@@ -444,6 +445,7 @@ if __name__ == '__main__':
     if args.fake_it:
         def run_speedtest(ip=None):
             return { "FAKE_SPEEDTEST" : True, ip: ip }
+        globals()["run_speedtest"] = run_speedtest
 
     print("interface:  {!r}".format(args.interface))
     if not args.interface_select:
@@ -459,3 +461,6 @@ if __name__ == '__main__':
         time.sleep(delay)
     interfaces = find_matching_interfaces(args.interface_select, args.interface, r"^(u|v|)tun$")
     main(interfaces, output_to_hec)
+
+if __name__ == '__main__':
+    cli()

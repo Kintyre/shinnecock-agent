@@ -71,4 +71,4 @@ This project internally uses:
 
  * [speedtest-cli](https://github.com/sivel/speedtest-cli) - for all Internet performance tests
  * [ifcfg](https://github.com/ftao/python-ifcfg) - For cross-platform network interface enumeration
- * [requets](http://docs.python-requests.org/en/master/) - For posting to the HEC endpoints
+ * [requests](http://docs.python-requests.org/en/master/) - For posting to the HEC endpoints
