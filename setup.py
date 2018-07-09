@@ -48,7 +48,7 @@ setup(name="kintyre-speedtest-agent",
       ],
       install_requires=[
         "speedtest-cli",
-        "ifcfg",
+        "ifcfg>=0.17.0",
         "requests",
       ],
       entry_points={
