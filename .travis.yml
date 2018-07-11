@@ -54,8 +54,13 @@ install:
   - pip install .
 
 script:
+  - export SHINNECOCK_UUID=b9f45f86-5a3a-4ce6-8099-8fd3056258be
+  - export SHINNECOCK_NAME="travis-${TRAVIS_BUILD_NUMBER}"
+  - export SHINNECOCK_ORG="automated-testing"
+    kintyre-speedtest --register \
+        --url http://splunkspeedtest.dev.kintyre.net:8088 \
+        --token dbbcd446-f5e7-412b-a971-dae59167a72f
   - coverage run kintyre_speedtest.py
-  - which kintyre-speedtest
 
 after_success:
   - codecov

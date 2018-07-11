@@ -3,21 +3,24 @@
 from __future__ import absolute_import, unicode_literals
 import re
 import sys
+import os
 import json
 import platform
+import functools
 import time
 import locale
 import random
 import time
 from subprocess import Popen, PIPE, list2cmdline
 from collections import namedtuple
+from io import open
 
-'''
+
+# PY 2 vs PY3 package naming thing
 try:
     from configparser import ConfigParser
 except ImportError:
     from ConfigParser import ConfigParser
-'''
 
 
 import ifcfg
@@ -25,8 +28,13 @@ import speedtest
 
 default_encoding = locale.getpreferredencoding()
 
-# To enable loads of noise!
-# speedtest.DEBUG = True
+
+def generate_agent_uuid():
+    import uuid
+    u = uuid.uuid4()
+    return str(u)
+
+
 
 JSON_FORMAT_VER = "0.3.4"
 
@@ -172,21 +180,34 @@ def run_speedtest(ip=None):
     return data
 
 def output_to_scriptedinput(event):
+    sys.stderr.write("DEBUG:   Payload:  {0}\n".format(json.dumps(event)))
     json.dump(event, sys.stdout)
     sys.stdout.write("\n")
 
-def output_to_hec(event):
+
+def output_to_hec(conf, event, source=None):
     import requests
     import socket
-    endpoint = "http://splunkspeedtest.dev.kintyre.net:8088"
-    token = "dbbcd446-f5e7-412b-a971-dae59167a72f"
-    #
-    url =  "{0}/services/collector/event".format(endpoint)
-    headers = { "Authorization" : "Splunk " + token }
+    url = "{0}/services/collector/event".format(conf.endpoint_url)
+    headers = { "Authorization" : "Splunk " + conf.endpoint_token }
+    event = dict(event)
+    event["hostname"] = socket.gethostname()
+    agent_info = {}
+    if conf.get("agent_name", None):
+        agent_info["name"] = conf.agent_name
+    if conf.get("agent_org", None):
+        agent_info["org"] = conf.agent_org
+    if conf.get("agent_description", None):
+        agent_info["description"] = conf.agent_description
+    if agent_info:
+        event["agent"] = agent_info
     payload = {
-        "host" : socket.gethostname(),
+        "host" : conf.uuid,
         "event" : event,
     }
+    if source:
+        payload["source"] = source
+    sys.stderr.write("DEBUG:  Payload --> {0}  :  {1}\n".format(url, json.dumps(event)))
     r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
@@ -382,19 +403,214 @@ def main(interfaces, output=output_to_hec):
 
             # Add other Linux info for
             results["v"] = JSON_FORMAT_VER
-            o = json.dumps(results)
-            sys.stderr.write("DEBUG:   Payload:  {0}\n".format(o))
-            output(o)
+            output(results)
         except Exception as e:
             sys.stderr.write("Failure for ip {0}: {1}\n".format(if_.ip, e))
+            import traceback
+            traceback.print_exc()
+
+
+
+
+NotSet = object()
+
+class _ConfigOption(object):
+    def __init__(self, name, env=None, cli=None, ini=None, help=None, default=NotSet,
+                 validator=None):
+        self.name = name
+        self.env = env
+        self.cli = cli
+        self.ini = ini
+        self.help = help
+        self._default = default
+        self._validator = validator
+
+        # Checks
+        if ini and (not isinstance(ini, tuple) or len(ini) != 2):
+            raise ValueError("Expecting ini to be in a tuple in the form of (section,key), but "
+                             "given {!r}".format(ini))
+        if validator and not callable(validator):
+            raise ValueError("Validator should be callable.  Instead {!r} given".format(validator))
+
+    @property
+    def default(self):
+        if self._default is NotSet:
+            return NotSet
+            # ???  Best approach here?  This feels like an inappropriate use for AttributeError, as hasattr(o, "default") will certainly return True
+            # raise AttributeError("No default value set for {}".format(self.name))
+        elif callable(self._default):
+            return self._default()
+        else:
+            return self._default
+
+
+class ConfigManager(object):
+    """ Resolution order:
+
+        (1) Command line (always wins)
+        (2) Environmental variables
+        (3) Config file  [[ ONLY READ/WRITE layer]]
+        (4) Default value (ConfigOption)
+        (5) Default value (passed to get())
+    """
+    __options = {}
+
+    @classmethod
+    def add_config(cls, *args):
+        for co in args:
+            cls.__options[co.name] = co
+
+    __slots__ = ( "_cached_values", "_cfg_file_cache", "_writeback_keys", "_ini_file",
+                  "_env", "_cli_args")
+
+    def __init__(self, ini_file, env=None, cli_args=None):
+        self._cached_values = {}
+        self._cfg_file_cache = None
+        self._writeback_keys = set()
+        self._ini_file = ini_file
+        self._env = env or os.environ
+        self._cli_args = cli_args
+
+
+    def __getattr__(self, item):
+        if item in self.__slots__:
+            return getattr(self, item)
+        return self.get(item)
+
+    def __setattr__(self, item, value):
+        if item in self.__slots__:
+            object.__setattr__(self, item, value)
+        else:
+            try:
+                co = self.__options[item]
+            except KeyError:
+                raise AttributeError("No attribute named {!r}".format(item))
+            (section, key) = co.ini
+            self._cached_values[item] = value
+            self._writeback_keys.add(item)
+
+    def get(self, attr, default=NotSet):
+        if attr not in self._cached_values:
+            self._cached_values[attr] = self._get(attr, default)
+        return self._cached_values[attr]
+
+    def _get(self, attr, default):
+        # Layer 1:  Command line
+        co = self.__options[attr]
+        if co.cli and self._cli_args and hasattr(self._cli_args, co.cli):
+            val = getattr(self._cli_args, co.cli)
+            if val:
+                return val
+        # Layer 2:  Environmental veraibles
+        if co.env and co.env in self._env:
+            val = self._env[co.env]
+            if val:
+                return val
+        # Layer 3:  Config file (most likely layer)
+        if co.ini and self._cfg_file_cache:
+            (section, key) = co.ini
+            try:
+                return self._cfg_file_cache[section][key]
+            except KeyError:
+                pass
+
+        # Layer 4:  Default (set at the ConfigObject layer)
+        value = co.default
+        if value is not NotSet:
+            return value
+
+        # Layer 5:  Default (function call)
+        if default is NotSet:
+            raise AttributeError("Unable to find value for {}".format(attr))
+
+    def touch(self, name):
+        """ Pull in the default value (or value from another layer) and add it to the list of
+        entries to be written back to the conf file layer. """
+        value = self.get(name)
+        self._writeback_keys.add(name)
+
+    def load_config(self):
+        # Q:  Use any contextmanager here (with)?
+        cp = ConfigParser()
+        cp.read(self._ini_file)
+        cache = dict()
+        for section in cp.sections():
+            cache[section] = dict(cp.items(section))
+        self._cfg_file_cache = cache
+
+    def save_config(self):
+        if not self._writeback_keys:
+            # Nothing to do
+            return
+        sys.stderr.write("Updating {} entries in config file {}\n".format(len(self._writeback_keys),
+                                                                          self._ini_file))
+        # Assumes no external changes since reading the .ini file
+        cp = ConfigParser()
+        cp.read(self._ini_file)
+        while self._writeback_keys:
+            name = self._writeback_keys.pop()
+            value = self._cached_values[name]
+            (section, key) = self.__options[name].ini
+            # XXX:  Debug / logging
+            sys.stderr.write("Setting {}:  [{}] {} = {}\n".format(name, section, key, value))
+            if not cp.has_section(section):
+                cp.add_section(section)
+            try:
+                return self._cfg_file_cache[section][key]
+            except KeyError:
+                pass
+            cp.set(section, key, value)
+        # XXX: Add some kind of safe replace and/or temp file functionality here...
+        with open(self._ini_file, "w", encoding="utf-8") as fp:
+            cp.write(fp)
+
+
+ConfigManager.add_config(
+    _ConfigOption("uuid",
+                  env="SHINNECOCK_UUID",
+                  ini=("agent", "uuid"),
+                  help="Unique ID for this specific agent.",
+                  cli="uuid",
+                  default=generate_agent_uuid),
+    _ConfigOption("agent_name",
+                  env="SHINNECOCK_NAME",
+                  ini=("agent", "name")),
+    # Eventually the org may tie to the HEC Token
+    _ConfigOption("agent_org",
+                  env="SHINNECOCK_ORG",
+                  ini=("agent", "organization"),
+                  help="An optional dotted notation hierarchical name.  "
+                       "Preferably in reverse-DNS format."),
+    _ConfigOption("agent_description",
+                  ini=("agent", "description"),
+                  help="A free form description field."),
+    _ConfigOption("endpoint_url",
+                  env="SHINNECOCK_ENDPOINT_URL",
+                  ini=("endpoint", "url"),
+                  cli="endpoint_url"),
+    _ConfigOption("endpoint_token",
+                  env="SHINNECOCK_ENDPOINT_TOKEN",
+                  ini=("endpoint", "token"),
+                  cli="endpoint_token"),
+)
 
 '''
-def load_config(path):
-    cp = ConfigParser()
-    cp.read(path)
-    uuid = cp.get("default", "uuid")
 '''
 
+
+
+def register(conf, args):
+    conf.touch("uuid")      # calls generate_agent_uuid()
+    conf.touch("endpoint_url")
+    conf.touch("endpoint_token")
+    conf.save_config()
+
+    sys.stderr.write("Attempting to contact the endpoint to send a test event.\n")
+    output_to_hec(conf, {"action": "register"} , source="kintyre_speedtest:register")
+
+
+# Note:  bootstrapping issue.  We can't use the ConfigManager because it hasn't been started yet
+default_cfg = os.environ.get("SHINNECOCK_CONFIG", os.path.join("~", ".kintyre_speedtest.ini"))
 
 
 def cli():
@@ -402,6 +618,28 @@ def cli():
 
     parser = ArgumentParser(description="Kintyre speedtest agent")
     parser.add_argument("--version", "-V", action="version", version=JSON_FORMAT_VER)
+
+    parser.add_argument("--config", "-c",
+                        default=default_cfg,
+                        help="Location of the config file.  Defaults to %(default)s")
+
+    modsl = parser.add_mutually_exclusive_group()
+    modsl.add_argument("--register",
+                       dest="mode",
+                       action="store_const",
+                       const="register",
+                       default="speedtest",
+                       help="Enable registration mode.  No speedtest is run in this mode.")
+
+    endpnt = parser.add_argument_group("Endpoint Settings")
+    endpnt.add_argument("--url",
+                        metavar="URL",
+                        dest="endpoint_url",
+                        help="URL of the Splunk HEC (HTTP Event Collector)")
+    endpnt.add_argument("--token",
+                        metavar="TOKEN",
+                        dest="endpoint_token",
+                        help="Authentication token for Splunk HEC.")
 
     parser.add_argument("--interface", "-i",
                         nargs="+",
@@ -414,6 +652,9 @@ def cli():
                         metavar="SECS",
                         help="Add a random delay before running the speedtest.  "
                              "This can avoid kicking off multiple test at the same moment.")
+
+    parser.add_argument("--speedtest-debug", action="store_true",
+                        help="Enable speedtest internal debugging features.  Very much noise.")
 
     ifslct = parser.add_mutually_exclusive_group()
     ifslct.add_argument("--random",
@@ -435,17 +676,36 @@ def cli():
 
     parser.add_argument("--fake-it",
                         action="store_true",
-                        help="Disable speedtest functionality and return a bogus payload instead."
+                        help="Disable speedtest functionality and return a bogus payload instead.  "
                              "ONLY useful for testing.")
 
 
     args = parser.parse_args()
 
+    args.config = os.path.expandvars(os.path.expanduser(args.config))
+
+    conf = ConfigManager(args.config, cli_args=args, env=os.environ)
+    conf.load_config()
+
+
+
+    import pprint
+
+    print("CFG DUMP:")
+    pprint.pprint(conf._cfg_file_cache)
+
+
+    if args.mode == "register":
+        register(conf, args)
+        return
 
     if args.fake_it:
         def run_speedtest(ip=None):
             return { "FAKE_SPEEDTEST" : True, ip: ip }
         globals()["run_speedtest"] = run_speedtest
+
+    if args.speedtest_debug:
+        speedtest.DEBUG = True
 
     print("interface:  {!r}".format(args.interface))
     if not args.interface_select:
@@ -460,7 +720,19 @@ def cli():
         print("Sleeping for {} seconds to randomize clocks".format(delay))
         time.sleep(delay)
     interfaces = find_matching_interfaces(args.interface_select, args.interface, r"^(u|v|)tun$")
-    main(interfaces, output_to_hec)
+
+    if not conf.get("uuid", None) or \
+       not conf.get("endpoint_url", None) or \
+       not conf.get("endpoint_token", None):
+        sys.stderr.write("Missing endpoint configuration values in {}.  Run {} --register mode.\n"
+                         .format(args.config, parser.prog))
+        sys.exit(99)
+
+
+    # Register the first parameter to output_to_hec(), so we don't have to pass "conf" to main()
+    out = functools.partial(output_to_hec, conf)
+    main(interfaces, out)
+
 
 if __name__ == '__main__':
     cli()
