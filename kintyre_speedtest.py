@@ -20,7 +20,7 @@ from io import open
 try:
     from configparser import ConfigParser
 except ImportError:
-    from ConfigParser import ConfigParser
+    from backports.configparser import ConfigParser
 
 
 import ifcfg
@@ -33,7 +33,6 @@ def generate_agent_uuid():
     import uuid
     u = uuid.uuid4()
     return str(u)
-
 
 
 JSON_FORMAT_VER = "0.3.4"
@@ -211,6 +210,8 @@ def output_to_hec(conf, event, source=None):
     r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
+    else:
+        sys.stderr.write("   Status code = {}\n".format(r.status_code))
 
 
 def add_platform_info(d):
@@ -686,14 +687,6 @@ def cli():
 
     conf = ConfigManager(args.config, cli_args=args, env=os.environ)
     conf.load_config()
-
-
-
-    import pprint
-
-    print("CFG DUMP:")
-    pprint.pprint(conf._cfg_file_cache)
-
 
     if args.mode == "register":
         register(conf, args)
