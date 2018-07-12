@@ -7,7 +7,7 @@ repos:
     - id: trailing-whitespace
       exclude: README\.md$
     - id: end-of-file-fixer
-      exclude: README\.md$
+      exclude: (README\.md|setup\.cfg)$
     - id: check-ast
     - id: check-added-large-files
       args: [ '--maxkb=200' ]
