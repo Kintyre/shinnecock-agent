@@ -47,6 +47,7 @@ setup(name="kintyre-speedtest-agent",
         "kintyre_speedtest",
       ],
       install_requires=[
+        "six",
         "configparser>=3.5;python_version=='2.7'",
         "speedtest-cli",
         "ifcfg>=0.17.0",

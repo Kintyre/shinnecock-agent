@@ -12,11 +12,11 @@ import locale
 import random
 import time
 from subprocess import Popen, PIPE, list2cmdline
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from io import open
 
 
-# PY 2 vs PY3 package naming thing
+# Use backported config parser for Python 2.7 for proper Unicode support
 try:
     from configparser import ConfigParser
 except ImportError:
@@ -210,8 +210,10 @@ def output_to_hec(conf, event, source=None):
     r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
+        return False
     else:
         sys.stderr.write("   Status code = {}\n".format(r.status_code))
+        return True
 
 
 def add_platform_info(d):
@@ -407,6 +409,8 @@ def main(interfaces, output=output_to_hec):
             output(results)
         except Exception as e:
             sys.stderr.write("Failure for ip {0}: {1}\n".format(if_.ip, e))
+            # For debugging
+            # XXX:  Find a way to publish error messages back to HEC
             import traceback
             traceback.print_exc()
 
@@ -417,18 +421,20 @@ NotSet = object()
 
 class _ConfigOption(object):
     def __init__(self, name, env=None, cli=None, ini=None, help=None, default=NotSet,
-                 validator=None):
+                 validator=None, prompt=False):
         self.name = name
         self.env = env
         self.cli = cli
         self.ini = ini
         self.help = help
+        self.prompt = prompt
+
         self._default = default
         self._validator = validator
 
         # Checks
         if ini and (not isinstance(ini, tuple) or len(ini) != 2):
-            raise ValueError("Expecting ini to be in a tuple in the form of (section,key), but "
+            raise ValueError("Expecting ini to be in a tuple in the form of (section,option), but "
                              "given {!r}".format(ini))
         if validator and not callable(validator):
             raise ValueError("Validator should be callable.  Instead {!r} given".format(validator))
@@ -444,6 +450,18 @@ class _ConfigOption(object):
         else:
             return self._default
 
+    @property
+    def ini_section(self):
+        if self.ini:
+            return self.ini[0]
+        return None
+
+    @property
+    def ini_option(self):
+        if self.ini:
+            return self.ini[1]
+        return None
+
 
 class ConfigManager(object):
     """ Resolution order:
@@ -454,7 +472,7 @@ class ConfigManager(object):
         (4) Default value (ConfigOption)
         (5) Default value (passed to get())
     """
-    __options = {}
+    __options = OrderedDict()
 
     @classmethod
     def add_config(cls, *args):
@@ -472,37 +490,54 @@ class ConfigManager(object):
         self._env = env or os.environ
         self._cli_args = cli_args
 
+    def __del__(self):
+        if self._writeback_keys:
+            sys.stderr.write("Warning:  Discarding {:d} unsaved changes to {}\n".format(
+                len(self._writeback_keys), self._ini_file))
 
     def __getattr__(self, item):
         if item in self.__slots__:
             return getattr(self, item)
-        return self.get(item)
+        return self.get(item, NotSet)
 
     def __setattr__(self, item, value):
         if item in self.__slots__:
             object.__setattr__(self, item, value)
         else:
+            self.set(item, value)
+        return item
+
+    def set(self, item, value):
+        if item not in self.__options:
+                raise AttributeError("No attribute named {!r}.  New attributes must be "
+                                     "registered via add_config() ".format(item))
+        self._cached_values[item] = value
+        self._writeback_keys.add(item)
+
+    def get(self, attr, default=None):
+        # Never cache a 'default' value passed to this function.
+        if attr in self._cached_values:
+            return self._cached_values[attr]
+        else:
             try:
-                co = self.__options[item]
-            except KeyError:
-                raise AttributeError("No attribute named {!r}".format(item))
-            (section, key) = co.ini
-            self._cached_values[item] = value
-            self._writeback_keys.add(item)
+                value = self._get(attr)
+            except AttributeError as e:
+                if default is NotSet:
+                    raise e
+                else:
+                    return default
+            # _get() was successful; cache return value
+            self._cached_values[attr] = value
+            return value
 
-    def get(self, attr, default=NotSet):
-        if attr not in self._cached_values:
-            self._cached_values[attr] = self._get(attr, default)
-        return self._cached_values[attr]
-
-    def _get(self, attr, default):
+    def _get(self, attr):
         # Layer 1:  Command line
         co = self.__options[attr]
         if co.cli and self._cli_args and hasattr(self._cli_args, co.cli):
             val = getattr(self._cli_args, co.cli)
             if val:
                 return val
-        # Layer 2:  Environmental veraibles
+        # Layer 2:  Environmental variables
         if co.env and co.env in self._env:
             val = self._env[co.env]
             if val:
@@ -514,15 +549,32 @@ class ConfigManager(object):
                 return self._cfg_file_cache[section][key]
             except KeyError:
                 pass
-
         # Layer 4:  Default (set at the ConfigObject layer)
-        value = co.default
-        if value is not NotSet:
-            return value
-
-        # Layer 5:  Default (function call)
-        if default is NotSet:
+        if co.default is NotSet:
             raise AttributeError("Unable to find value for {}".format(attr))
+        else:
+            return co.default
+
+    def items(self):
+        for co in self.__options.values():
+            try:
+                value = self.get(co.name, NotSet)
+                yield (co.name, value)
+            except AttributeError:
+                pass
+
+    @classmethod
+    def find_options(self, **search):
+        search = list(search.items())
+        for op in self.__options.values():
+            keep = True
+            for (find_attr, find_value) in search:
+                value = getattr(op, find_attr)
+                if find_value != value:
+                    keep = False
+                    break
+            if keep:
+                yield op
 
     def touch(self, name):
         """ Pull in the default value (or value from another layer) and add it to the list of
@@ -556,10 +608,6 @@ class ConfigManager(object):
             sys.stderr.write("Setting {}:  [{}] {} = {}\n".format(name, section, key, value))
             if not cp.has_section(section):
                 cp.add_section(section)
-            try:
-                return self._cfg_file_cache[section][key]
-            except KeyError:
-                pass
             cp.set(section, key, value)
         # XXX: Add some kind of safe replace and/or temp file functionality here...
         with open(self._ini_file, "w", encoding="utf-8") as fp:
@@ -571,39 +619,71 @@ ConfigManager.add_config(
                   env="SHINNECOCK_UUID",
                   ini=("agent", "uuid"),
                   help="Unique ID for this specific agent.",
-                  cli="uuid",
-                  default=generate_agent_uuid),
+                  cli="uuid"),
     _ConfigOption("agent_name",
                   env="SHINNECOCK_NAME",
+                  prompt=True,
                   ini=("agent", "name")),
     # Eventually the org may tie to the HEC Token
     _ConfigOption("agent_org",
                   env="SHINNECOCK_ORG",
                   ini=("agent", "organization"),
+                  prompt=True,
                   help="An optional dotted notation hierarchical name.  "
-                       "Preferably in reverse-DNS format."),
+                       "Preferably a registered DNS domain."),
     _ConfigOption("agent_description",
                   ini=("agent", "description"),
+                  prompt=True,
                   help="A free form description field."),
     _ConfigOption("endpoint_url",
                   env="SHINNECOCK_ENDPOINT_URL",
                   ini=("endpoint", "url"),
+                  prompt=True,
                   cli="endpoint_url"),
     _ConfigOption("endpoint_token",
                   env="SHINNECOCK_ENDPOINT_TOKEN",
                   ini=("endpoint", "token"),
+                  prompt=True,
                   cli="endpoint_token"),
 )
 
 '''
+    _ConfigOption("endpoint_proxy",
+                  env="SHINNECOCK_ENDPOINT_PROXY",
+                  ini=("endpoint", "proxy")),
+    _ConfigOption("wifi_blacklist",
+                  env="SHINNECOCK_WIFI_BLACKLIST",
+                  ini=("wifi", "blacklist")),
+    _ConfigOption("report_errors",
+                  env="SHINNECOCK_REPORT_ERRORS",
+                  ini=("collection", "errors")),
+    _ConfigOption("report_nic_drivers",
+                  ini=("collection", "network_drivers")),
 '''
 
 
+def _register_by_conf_group(conf, section):
+    from six.moves import input
+    for co in conf.find_options(ini_section=section, prompt=True):
+        default = conf.get(co.name)
+        print("Variable:  {0.name}  {0.help}  (default: {1})".format(co, default))
+        value = input("{.name}> ".format(co))
+        if value:
+            conf.set(co.name, value)
 
 def register(conf, args):
-    conf.touch("uuid")      # calls generate_agent_uuid()
-    conf.touch("endpoint_url")
-    conf.touch("endpoint_token")
+    if not conf.get("uuid"):
+        conf.uuid = generate_agent_uuid()
+    if args.no_prompt:
+        print("Automated registration.  Using values from CLI / envvars only")
+        for (key, value) in conf.items():
+            if value:
+                print("Setting {} to {!r}".format(key, value))
+                conf.touch(key)
+    else:
+        _register_by_conf_group(conf, "endpoint")
+        _register_by_conf_group(conf, "agent")
+
     conf.save_config()
 
     sys.stderr.write("Attempting to contact the endpoint to send a test event.\n")
@@ -623,6 +703,10 @@ def cli():
     parser.add_argument("--config", "-c",
                         default=default_cfg,
                         help="Location of the config file.  Defaults to %(default)s")
+
+    parser.add_argument("--no-prompt",
+                        action="store_true",
+                        help="Disable interactive prompting.")
 
     modsl = parser.add_mutually_exclusive_group()
     modsl.add_argument("--register",
@@ -693,8 +777,9 @@ def cli():
         return
 
     if args.fake_it:
+        # Inject this stub function for testing purposes (save some bandwidth/time)
         def run_speedtest(ip=None):
-            return { "FAKE_SPEEDTEST" : True, ip: ip }
+            return { "action" : "FAKE_SPEEDTEST", ip: ip }
         globals()["run_speedtest"] = run_speedtest
 
     if args.speedtest_debug:
@@ -714,14 +799,16 @@ def cli():
         time.sleep(delay)
     interfaces = find_matching_interfaces(args.interface_select, args.interface, r"^(u|v|)tun$")
 
-    if not conf.get("uuid", None) or \
-       not conf.get("endpoint_url", None) or \
-       not conf.get("endpoint_token", None):
+    if not conf.get("uuid") or not conf.get("endpoint_url") or not conf.get("endpoint_token"):
         sys.stderr.write("Missing endpoint configuration values in {}.  Run {} --register mode.\n"
                          .format(args.config, parser.prog))
         sys.exit(99)
 
 
+    # Send a ping!
+    if not output_to_hec(conf, {"action": "ping"}, source="kintyre_speedtest:ping"):
+        sys.stderr.write("Unable to ping the HEC endpoint.  Don't waste time trying to run a speed-test.")
+        return
     # Register the first parameter to output_to_hec(), so we don't have to pass "conf" to main()
     out = functools.partial(output_to_hec, conf)
     main(interfaces, out)

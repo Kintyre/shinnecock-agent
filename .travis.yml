@@ -54,6 +54,7 @@ install:
   - pip install coverage
   - pip install codecov
   - pip install .
+  - pip list
 
 script:
   - export
@@ -61,7 +62,7 @@ script:
     SHINNECOCK_NAME="travis-${TRAVIS_BUILD_NUMBER}"
     SHINNECOCK_ORG="automated-testing"
   - kintyre-speedtest --version
-  - kintyre-speedtest --register
+  - kintyre-speedtest --register --no-prompt
                       --url http://splunkspeedtest.dev.kintyre.net:8088
                       --token dbbcd446-f5e7-412b-a971-dae59167a72f
   - coverage run kintyre_speedtest.py

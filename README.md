@@ -54,6 +54,14 @@ Install:
     pip install -r requirements.txt
     python setup.py install
 
+Testing locally:
+
+    # Assumes tox and multple python versions have been installed (i.e., pyenv)
+    tox
+
+    # Accelerated test run bypassing the acutal "SpeedTest" portion (save some bandwidth)
+    tox -- --fake-it
+
 
 
 Configure
