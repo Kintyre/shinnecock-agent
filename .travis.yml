@@ -25,6 +25,10 @@ matrix:
   - os: linux
     python: 'pypy'
 
+env:
+    # This sets encrypted values for SHINNECOCK_ENDPOINT_URL (which does get displayed in the logs) and SHINNECOCK_ENDPOINT_TOKEN
+    secure: "h0tGXMZTcsp7uCUzkesWSqGgR2AVHWbVgLKly6W6ao8B1Y0kgQ5a89/2Q7JmgjWfKGyZzhb0f2oCgtYjdilYMFkYt53xABojsmdZdW9FReKv2gEPXlMD6tak8Aw/pQzE3JIvFtiXmc8Ir2S9WVdCTRTI0GlTRkJ2rg3vba28uGXjIx6ZHa84UpFpJnKYhr7N0pEiDqaQ7DU6i2RXOfpkBMZ89rR2A8qhHenAcPu3OuVHYZcwIv64RMdRKXw09tez7XIgfEgPBGcJfWD5KeLLK9zhXZ01e3FvzvqoIc8/Doge2vhwaE+rI0nt7TvvHf6qPen8vtr09WTyMqyoRsOijt+Qsjg9lWZywAEBi08KHTNVBlfF5B6TUTVkhVLtNU1LY/nm/Vi3mxZ5k8/AB4HtDrIIaBpIVg8pbFGECfbONAtkgmQBrYchTkIp4fi1iUQgrooMvVnpWzgMG35bQV0ow1ZJlBqxYA5bHjc2zoLrg2ieIdeXB6LIqpywasX8NXVE4rQYQ9NNTbNqS+rfNHLCVnIhtSMpKrNUMX8cKQnSfHZWTGk0mhrJE8ej2aXWpIG/fapXVboEd61VchPbTjZ2MKMG+fhg6ohPUOEHnheZ1S2oSxTG0sqZCMrkNsD2ZuuHDpHa1njpVkwtvlpj1NrFFwRqKHpgzwGu9Jrms5ryVnw="
+
 
 install:
   - echo "Build $TRAVIS_BUILD_NUMBER BRANCH=$TRAVIS_BRANCH TAG=$TRAVIS_TAG"
@@ -62,9 +66,8 @@ script:
     SHINNECOCK_NAME="travis-${TRAVIS_BUILD_NUMBER}"
     SHINNECOCK_ORG="automated-testing"
   - kintyre-speedtest --version
+  # Note SHINNECOCK_ENDPOINT_* settings are included (encrypted) above
   - kintyre-speedtest --register --no-prompt
-                      --url http://splunkspeedtest.dev.kintyre.net:8088
-                      --token dbbcd446-f5e7-412b-a971-dae59167a72f
   - coverage run kintyre_speedtest.py
 
 after_success:

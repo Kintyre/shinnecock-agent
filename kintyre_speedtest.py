@@ -217,7 +217,7 @@ def output_to_hec(conf, event, source=None):
     sys.stderr.write("DEBUG:  Payload --> {0}  :  {1}\n".format(url, json.dumps(event)))
     r = requests.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
-        sys.stderr.write("Pushing to HEC failed.  url={0}, error={0}\n". format(url, r.text))
+        sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
         return False
     else:
         sys.stderr.write("   Status code = {}\n".format(r.status_code))
