@@ -26,8 +26,9 @@ matrix:
     python: 'pypy'
 
 env:
-    # This sets encrypted values for SHINNECOCK_ENDPOINT_URL (which does get displayed in the logs) and SHINNECOCK_ENDPOINT_TOKEN
-    secure: "h0tGXMZTcsp7uCUzkesWSqGgR2AVHWbVgLKly6W6ao8B1Y0kgQ5a89/2Q7JmgjWfKGyZzhb0f2oCgtYjdilYMFkYt53xABojsmdZdW9FReKv2gEPXlMD6tak8Aw/pQzE3JIvFtiXmc8Ir2S9WVdCTRTI0GlTRkJ2rg3vba28uGXjIx6ZHa84UpFpJnKYhr7N0pEiDqaQ7DU6i2RXOfpkBMZ89rR2A8qhHenAcPu3OuVHYZcwIv64RMdRKXw09tez7XIgfEgPBGcJfWD5KeLLK9zhXZ01e3FvzvqoIc8/Doge2vhwaE+rI0nt7TvvHf6qPen8vtr09WTyMqyoRsOijt+Qsjg9lWZywAEBi08KHTNVBlfF5B6TUTVkhVLtNU1LY/nm/Vi3mxZ5k8/AB4HtDrIIaBpIVg8pbFGECfbONAtkgmQBrYchTkIp4fi1iUQgrooMvVnpWzgMG35bQV0ow1ZJlBqxYA5bHjc2zoLrg2ieIdeXB6LIqpywasX8NXVE4rQYQ9NNTbNqS+rfNHLCVnIhtSMpKrNUMX8cKQnSfHZWTGk0mhrJE8ej2aXWpIG/fapXVboEd61VchPbTjZ2MKMG+fhg6ohPUOEHnheZ1S2oSxTG0sqZCMrkNsD2ZuuHDpHa1njpVkwtvlpj1NrFFwRqKHpgzwGu9Jrms5ryVnw="
+    # This sets the encrypted value for SHINNECOCK_ENDPOINT_TOKEN
+    - secure: "R7I1Jp8E5jvPAokFfbYlO4Ft4EucaL57m46zc/SUZfRYmhizTNgyY7QQPMpd3xhXcLRHzwnOXRrXRi2PapFOvVsAVXebhjBulPonKxMwli+HVLCaMzzBFL/R5U9We9bw/Y+FTMU7/9AXQriJPUPC2cJyppm/eclT6IV/6a2ZE1W8ELk0Zl/2MxLuwhh4GrUnOCq6rpji+8w7g/jLq7+zODSCpe3C2KIzA5o9RSMAUASzP15L/b5v8mZLUMfPe3nAfUZGkhFLDNLUowVXRu8yDgev49wAplUHwW3xXALJ1EJLtag37mlxL/x8XOwHbT9Z3Xn+ca7n6H2cjUbvzpW59+1oDhhjnMwqxXR3787ZnFlenMWS9Ru8ZdpMgHKJaNFNe2Od41HtVxjMQkTpX+zu5611SKwYd3H1UYPTuDgUP+syQudOqgjHYLy0EVTGhuefldC2gEKYfuvQV6GULTUmoAkIKZYzqtY0TpuxX70sic+uk3dwn9GBH0uOjY5cmPpt59cZH5PId8b9bLqn/qZGPRONUt+dbx21Bdcwe9uOSyVhR7nTQu8b217aN+BTHXZPKhrmuozKc8WnUNctWb4rL76/06R0iqI0QRxoc9dL7ik/GKUrSEg1Q72+kvExTaFMhukHtNk8SOQSGMp26o8xLPOT2RF1x9NQnk+XkD+MDHw="
+
 
 
 install:
@@ -65,6 +66,7 @@ script:
     SHINNECOCK_UUID=b9f45f86-5a3a-4ce6-8099-8fd3056258be
     SHINNECOCK_NAME="travis-${TRAVIS_BUILD_NUMBER}"
     SHINNECOCK_ORG="automated-testing"
+    SHINNECOCK_ENDPOINT_URL=https://splunkspeedtest.kintyre.net
   - kintyre-speedtest --version
   # Note SHINNECOCK_ENDPOINT_* settings are included (encrypted) above
   - kintyre-speedtest --register --no-prompt
