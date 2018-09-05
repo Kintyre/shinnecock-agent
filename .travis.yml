@@ -55,7 +55,7 @@ install:
         pyenv rehash
         pip install wheel
         # Since pyenv is apparently cached across builds, uninstall first for a fresh build
-        pip show kintyre-speedtest-agent && pip uninstall -y kintyre-speedtest-agent
+        if pip show kintyre-speedtest-agent; then pip uninstall -y kintyre-speedtest-agent; fi
     fi
   - pip install coverage
   - pip install codecov
