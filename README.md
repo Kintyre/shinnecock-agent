@@ -11,9 +11,12 @@ An Internet speedtest monitoring utility for Splunk HEC.  Speedtest and other ne
 is captured and sent to a central Splunk instance via the Http Event Collector.  Scheduled
 monitoring is handled by the OS scheduler of your choice (often cron or the Windows Scheduler).
 
-The Splunk app and TA are in a different repository and will be available via Splunkbase.  This
-app represents the core work surrounding the speed-test data collection and standalone agent
-version.
+The Splunk app and TA are hosted in this [repository][shinnecock-splunk-app] and will be available
+via Splunkbase.
+The *Kintyre Speedtest app for Splunk* contains some example searches and visualizations of data
+collected by this speedtest agent, and the *Kintyre Speedtest add on for Splunk* has an embedded
+copy of the agent which can be conveniently used for collecting and forwarding speedtest data within
+an existing Splunk infrastructure.
 
 
 Install
@@ -56,10 +59,10 @@ Install:
 
 Testing locally:
 
-    # Assumes tox and multple python versions have been installed (i.e., pyenv)
+    # Assumes tox and multiple python versions have been installed (i.e., pyenv)
     tox
 
-    # Accelerated test run bypassing the acutal "SpeedTest" portion (save some bandwidth)
+    # Accelerated test run bypassing the actual "SpeedTest" portion (save some bandwidth)
     tox -- --fake-it
 
 
@@ -85,6 +88,39 @@ Example registration command (using the Kintyre's dev server):
 
 
 
+What's collected
+----------------
+
+The following list documents the types of metrics collected by this agent. Be aware that this is
+only a summary not every specific data point.  There certainly could be some PII type information
+collected (one example being if the hostname of your laptop has your name in it.)  Anyone with
+security concerns should (1) run the script and see a dump of the information it collects, and (2)
+make sure you trust the endpoint where you are sending this data.  If you have further questions,
+please review the source code or feel free to ask questions by opening an issue on GitHub.
+
+Data points:
+
+ * Uniquely assigned UUID.  (If using the Splunk TA version, this is the forwarder's GUID)
+ * Speedtest metrics.  (The same data collected by the `speedtest-cli` project in --json output mode)
+  * Bandwidth ratings
+  * External IP address (as issued by the ISP)
+  * Geo IP location
+ * Local network interface information (varies by OS and installed CLI tools)
+  * Device name
+  * Wireless SSID, link quality, signal levels, etc.
+  * Hardware address
+  * Driver names and sometimes firmware info
+ * Python info
+  * Python version
+  * Processor information
+  * OS/platform name & version
+
+A long-term goal of this project is to provide a means to enable/disable various portions of the
+data collection process.  But currently this is not implemented.  If this is important to you, pull
+requests are always welcomed!
+
+
+
 Credits
 -------
 
@@ -97,3 +133,4 @@ This project internally uses:
 
 [pip-on-linux]: https://packaging.python.org/guides/installing-using-linux-tools
 [pypa-tut]: https://packaging.python.org/tutorials/installing-packages
+[shinnecock-splunk-app]: https://github.com/Kintyre/shinnecock-splunk-app
