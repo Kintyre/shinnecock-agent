@@ -102,18 +102,18 @@ Data points:
 
  * Uniquely assigned UUID.  (If using the Splunk TA version, this is the forwarder's GUID)
  * Speedtest metrics.  (The same data collected by the `speedtest-cli` project in --json output mode)
-  * Bandwidth ratings
-  * External IP address (as issued by the ISP)
-  * Geo IP location
+   * Bandwidth ratings
+   * External IP address (as issued by the ISP)
+   * Geo IP location
  * Local network interface information (varies by OS and installed CLI tools)
-  * Device name
-  * Wireless SSID, link quality, signal levels, etc.
-  * Hardware address
-  * Driver names and sometimes firmware info
+   * Device name
+   * Wireless SSID, link quality, signal levels, etc.
+   * Hardware address
+   * Driver names and sometimes firmware info
  * Python info
-  * Python version
-  * Processor information
-  * OS/platform name & version
+   * Python version
+   * Processor information
+   * OS/platform name & version
 
 A long-term goal of this project is to provide a means to enable/disable various portions of the
 data collection process.  But currently this is not implemented.  If this is important to you, pull
