@@ -38,35 +38,6 @@ If `pip` is not present or out of date on your Linux system, see the Python Pack
 [Linux Package Managers][pip-on-linux].  Or more generally, see [Installing Packages][pypa-tut].
 
 
-Developers
-----------
-
-If you wish to help with development, or simply install via git, we suggest installing into a
-virtual environment that can be thrown away and recreated as necessary.  Pull-requests welcome!
-
-Prep:
-
-    pip install virtualenv
-
-Install:
-
-    git clone https://github.com/Kintyre/shinnecock-agent.git
-    cd shinnecock-agent || exit 1
-    virtualenv venv || exit 1
-    souce venv/bin/activate || exit 1
-    pip install -r requirements.txt
-    python setup.py install
-
-Testing locally:
-
-    # Assumes tox and multiple python versions have been installed (i.e., pyenv)
-    tox
-
-    # Accelerated test run bypassing the actual "SpeedTest" portion (save some bandwidth)
-    tox -- --fake-it
-
-
-
 Configure
 ---------
 
@@ -118,6 +89,35 @@ Data points:
 A long-term goal of this project is to provide a means to enable/disable various portions of the
 data collection process.  But currently this is not implemented.  If this is important to you, pull
 requests are always welcomed!
+
+
+
+Developers
+----------
+
+If you wish to help with development, or simply install via git, we suggest installing into a
+virtual environment that can be thrown away and recreated as necessary.  Pull-requests welcome!
+
+Prep:
+
+    pip install virtualenv
+
+Install:
+
+    git clone https://github.com/Kintyre/shinnecock-agent.git
+    cd shinnecock-agent || exit 1
+    virtualenv venv || exit 1
+    souce venv/bin/activate || exit 1
+    pip install -r requirements.txt
+    python setup.py install
+
+Testing locally:
+
+    # Assumes tox and multiple python versions have been installed (i.e., pyenv)
+    tox
+
+    # Accelerated test run bypassing the actual "SpeedTest" portion (save some bandwidth)
+    tox -- --fake-it
 
 
 
