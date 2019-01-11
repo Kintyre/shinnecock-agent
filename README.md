@@ -33,7 +33,6 @@ System-level install:  (For Mac/Linux)
 
 _Note_: This will also install/update `pip` and work around some known TLS/SSL issues
 
-
 If `pip` is not present or out of date on your Linux system, see the Python Packaging doc regarding
 [Linux Package Managers][pip-on-linux].  Or more generally, see [Installing Packages][pypa-tut].
 
@@ -56,6 +55,18 @@ Example registration command (using the Kintyre's dev server):
 *NOTE:* Be sure to run '--register' with the same OS user account used to schedule the execution 
         of speedtest via your scheduler of choice.  Otherwise, the configuration file will not be
         found and the script will fail.
+
+
+Upgrade
+-------
+
+Check what version you are running with
+
+    kintyre-speedtest --version
+
+If it's not the latest version, then upgrade using pip:
+
+    pip install -U kintyre-speedtest-agent
 
 
 
