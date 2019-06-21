@@ -73,9 +73,9 @@ If it's not the latest version, then upgrade using pip:
 What's collected
 ----------------
 
-The following list documents the types of metrics collected by this agent. Be aware that this is
-only a summary not every specific data point.  There certainly could be some PII type information
-collected (one example being if the hostname of your laptop has your name in it.)  Anyone with
+The following list documents the types of metrics collected by this agent. Be aware, this is
+only a summary, not every specific data point.  It is possible that some PII type information 
+could be collected. An example would be if the hostname of your laptop has your name in it. Anyone with
 security concerns should (1) run the script and see a dump of the information it collects, and (2)
 make sure you trust the endpoint where you are sending this data.  If you have further questions,
 please review the source code or feel free to ask questions by opening an issue on GitHub.
@@ -98,7 +98,7 @@ Data points:
    * OS/platform name & version
 
 A long-term goal of this project is to provide a means to enable/disable various portions of the
-data collection process.  But currently this is not implemented.  If this is important to you, pull
+data collection process but this is not currently implemented.  If this is important to you, pull
 requests are always welcomed!
 
 
@@ -107,7 +107,7 @@ Developers
 ----------
 
 If you wish to help with development, or simply install via git, we suggest installing into a
-virtual environment that can be thrown away and recreated as necessary.  Pull-requests welcome!
+virtual environment that can be thrown away and recreated as necessary.  Pull-requests are welcome!
 
 Prep:
 
@@ -138,8 +138,8 @@ Credits
 This project internally uses:
 
  * [speedtest-cli](https://github.com/sivel/speedtest-cli) - for all Internet performance tests
- * [ifcfg](https://github.com/ftao/python-ifcfg) - For cross-platform network interface enumeration
- * [requests](http://docs.python-requests.org/en/master/) - For posting to the HEC endpoints
+ * [ifcfg](https://github.com/ftao/python-ifcfg) - for cross-platform network interface enumeration
+ * [requests](http://docs.python-requests.org/en/master/) - for posting to the HEC endpoints
 
 
 [pip-on-linux]: https://packaging.python.org/guides/installing-using-linux-tools
