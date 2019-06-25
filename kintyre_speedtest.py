@@ -195,6 +195,11 @@ def output_to_scriptedinput(event):
 def output_to_hec(conf, event, source=None):
     import requests
     import socket
+    session = requests.Session()
+    if conf.endpoint_certs == "insecure":
+        session.verify = False
+    elif conf.endpoint_certs:
+        session.verify = conf.endpoint_certs
     url = "{0}/services/collector/event".format(conf.endpoint_url)
     headers = { "Authorization" : "Splunk " + conf.endpoint_token }
     event = dict(event)
@@ -215,7 +220,7 @@ def output_to_hec(conf, event, source=None):
     if source:
         payload["source"] = source
     sys.stderr.write("DEBUG:  Payload --> {0}  :  {1}\n".format(url, json.dumps(event)))
-    r = requests.post(url, headers=headers, data=json.dumps(payload))
+    r = session.post(url, headers=headers, data=json.dumps(payload))
     if not r.ok:
         sys.stderr.write("Pushing to HEC failed.  url={}, error={}\n". format(url, r.text))
         return False
@@ -653,6 +658,13 @@ ConfigManager.add_config(
                   ini=("endpoint", "token"),
                   prompt=True,
                   cli="endpoint_token"),
+    _ConfigOption("endpoint_certs",
+                  env="SHINNECOCK_ENDPOINT_CERTS",
+                  ini=("endpoint", "certs"),
+                  prompt=False,
+                  default="",
+                  help="Path to CA certs file or the word 'insecure' to disabled SSL validation.",
+                  cli="endpoint_certs"),
 )
 
 '''
@@ -684,14 +696,14 @@ def register(conf, args):
         conf.uuid = generate_agent_uuid()
     if args.no_prompt:
         print("Automated registration.  Using values from CLI / envvars only")
-        for (key, value) in conf.items():
-            if value:
-                print("Setting {} to {!r}".format(key, value))
-                conf.touch(key)
     else:
         _register_by_conf_group(conf, "endpoint")
         _register_by_conf_group(conf, "agent")
 
+    for (key, value) in conf.items():
+        if value:
+            print("Setting {} to {!r}".format(key, value))
+            conf.touch(key)
     conf.save_config()
 
     sys.stderr.write("Attempting to contact the endpoint to send a test event.\n")
@@ -733,6 +745,11 @@ def cli():
                         metavar="TOKEN",
                         dest="endpoint_token",
                         help="Authentication token for Splunk HEC.")
+    endpnt.add_argument("--certs",
+                        metavar="FILE",
+                        dest="endpoint_certs",
+                        help="Path to CA validation certs.  Or the word 'insecure' to disable SSL "
+                              "certificate validation for Splunk HEC.")
 
     parser.add_argument("--interface", "-i",
                         nargs="+",

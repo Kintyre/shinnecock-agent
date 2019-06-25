@@ -2,7 +2,7 @@
 # See http://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  sha: v1.3.0
+  sha: v2.0.0
   hooks:
     - id: trailing-whitespace
       exclude: README\.md$
@@ -13,6 +13,5 @@ repos:
       args: [ '--maxkb=200' ]
     - id: check-merge-conflict
     - id: detect-private-key
-    - id: detect-aws-credentials
     - id: mixed-line-ending
       args: [ '--fix=lf' ]
