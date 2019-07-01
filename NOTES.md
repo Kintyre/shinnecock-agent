@@ -11,7 +11,7 @@
  1. Travis CI will automatically build and publish the release to PyPI.
 
 
-Legacy/local package release can be done by:
+Legacy/local package release can be completed by:
 
  1. Make release:  `python setup sdist bdist_wheel`
  1. Upload:  `twine upload dist/*`\
