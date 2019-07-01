@@ -86,7 +86,7 @@ please review the source code or feel free to ask questions by opening an issue 
 Data points:
 
  * Uniquely assigned UUID (If using the Splunk TA version, this is the forwarder's GUID.)
- * Speedtest metrics (The same data collected by the `speedtest-cli` project in    '--json' output mode)
+ * Speedtest metrics (The same data collected by the `speedtest-cli` project in '--json' output mode)
    * Bandwidth ratings
    * External IP address (as issued by the ISP)
    * Geo IP location
