@@ -1,5 +1,5 @@
 six
 configparser; python_version=='2.7'
 speedtest-cli
-ifcfg
+ifcfg>=0.17.0
 requests

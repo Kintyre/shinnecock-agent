@@ -12,6 +12,9 @@ def get_ver():
     mo = re.search(r'[\r\n]JSON_FORMAT_VER\s*=\s*u?"([^"]+)"', content)
     return mo.group(1)
 
+with open("requirements.txt") as f:
+    requirements = f.readlines()
+
 
 setup(name="kintyre-speedtest-agent",
       version=get_ver(),
@@ -36,6 +39,9 @@ setup(name="kintyre-speedtest-agent",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Communications",
         "Topic :: Internet",
         "Topic :: System :: Networking :: Monitoring",
@@ -46,13 +52,7 @@ setup(name="kintyre-speedtest-agent",
       py_modules=[
         "kintyre_speedtest",
       ],
-      install_requires=[
-        "six",
-        "configparser>=3.5;python_version=='2.7'",
-        "speedtest-cli",
-        "ifcfg>=0.17.0",
-        "requests",
-      ],
+      install_requires=requirements,
       entry_points={
         "console_scripts" : [
             "kintyre-speedtest = kintyre_speedtest:cli",
