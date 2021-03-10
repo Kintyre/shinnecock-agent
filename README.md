@@ -77,7 +77,7 @@ What's collected
 ----------------
 
 The following list documents the types of metrics collected by this agent. Be aware, this is
-only a summary, not every specific data point.  It is possible some information similar to PII 
+only a summary, not every specific data point.  It is possible some information similar to PII
 could be collected such as a hostname with your name in it. Anyone with
 security concerns should (1) run the script and see a dump of the information it collects, and (2)
 make sure you trust the endpoint where you are sending this data.  If you have further questions,
