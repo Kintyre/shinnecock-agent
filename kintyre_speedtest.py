@@ -43,7 +43,7 @@ def generate_agent_uuid():
     return str(u)
 
 
-JSON_FORMAT_VER = "0.3.9"
+JSON_FORMAT_VER = "0.4.0"
 
 def cli_parser(cmd, breaker, regexes, group_by="id"):
     cregexes = []
